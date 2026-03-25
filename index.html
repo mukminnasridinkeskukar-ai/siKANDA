@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SIKANDA - Sistem Informasi Kepegawaian dan Data SDM Kesehatan Terpadu">
-  <title>SIKANDA - Sistem Informasi Kepegawaian dan Data SDM Kesehatan Terpadu</title>
+  <meta name="description" content="SIKANDA - Sistem Informasi Kepegawaian dan Data SDM Kesehatan Terpadu (GitHub Demo)">
+  <title>SIKANDA - Demo GitHub Pages</title>
   
   <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,20 +21,23 @@
       <div class="login-logo">
         <i class="fas fa-hospital-user"></i>
         <h1>SIKANDA</h1>
-        <p>Sistem Kepegawaian</p>
+        <p>Demo GitHub Pages</p>
       </div>
       <form id="adminLoginForm">
         <div class="form-group">
           <label>Username</label>
-          <input type="text" id="adminUsername" placeholder="Masukkan username" required>
+          <input type="text" id="adminUsername" placeholder="Masukkan username" value="admin">
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="adminPassword" placeholder="Masukkan password" required>
+          <input type="password" id="adminPassword" placeholder="Masukkan password" value="admin123">
         </div>
         <button type="submit" class="btn btn-primary">
-          <i class="fas fa-sign-in-alt"></i> Login Admin
+          <i class="fas fa-sign-in-alt"></i> Login Demo
         </button>
+        <p style="text-align:center;margin-top:15px;font-size:12px;color:#64748b">
+          Demo: admin / admin123
+        </p>
       </form>
     </div>
   </div>
@@ -46,7 +49,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <h2><i class="fas fa-hospital-user"></i> SIKANDA</h2>
-        <span>Sistem Kepegawaian SDM Kesehatan</span>
+        <span>Demo GitHub Pages</span>
       </div>
       <nav class="sidebar-menu">
         <div class="menu-item active" data-page="dashboard"><i class="fas fa-chart-pie"></i><span>Dashboard</span></div>
@@ -180,7 +183,7 @@
                 <p>Masukkan NIK untuk melihat data lengkap</p>
               </div>
               <form id="profilSearchForm">
-                <div class="form-group"><label>NIK</label><input type="text" id="profilNik" placeholder="Masukkan NIK" required></div>
+                <div class="form-group"><label>NIK</label><input type="text" id="profilNik" placeholder="Contoh: 7504010101010001" value="7504010101010001"></div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cari Profil</button>
               </form>
             </div>
@@ -338,7 +341,7 @@
   <!-- Loader -->
   <div class="loader-overlay" id="loader"><div class="loader"></div></div>
 
-  <!-- Custom JavaScript -->
-  <script src="app.js"></script>
+  <!-- Custom JavaScript (GitHub Demo Version) -->
+  <script src="app-github.js"></script>
 </body>
 </html>
