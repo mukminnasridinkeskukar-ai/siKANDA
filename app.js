@@ -376,7 +376,7 @@ async function loadFilterOptions() {
     // Build unit kerja options
     let options = '<option value="">Semua</option>';
     response.unitKerja?.forEach(unit => {
-      options += `<option value="${unit}">${unit}</option>';
+      options += `<option value="${unit}">${unit}</option>`;
     });
     
     // Apply to all unit select elements
