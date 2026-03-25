@@ -3,7 +3,7 @@
 
 // ==================== CONFIGURATION ====================
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbwr5oTI8G_z9yX5E-D0-yiDWn3emHtiCehM30fDK4huaQwfmPAWvTKFjC87ntuRhlZq/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbxxmqgIYexXSbprKPswlSIKpZguaDbqXitFFmL1oirZ8IwunsL2C3Vlu2L1bm36YHdd/exec',
   ITEMS_PER_PAGE: 10,
   CACHE_DURATION: 5 * 60 * 1000 // 5 minutes
 };
