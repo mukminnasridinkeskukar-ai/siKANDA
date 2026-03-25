@@ -1,12 +1,11 @@
-// ==================== SIKANDA - GitHub Pages Demo Version ====================
-// This version works without Google Apps Script backend
-// Uses local JSON data for demonstration purposes
+// ==================== SIKANDA - Sistem Informasi Kepegawaian dan Data SDM Kesehatan ====================
+// JavaScript Application File
 
 // ==================== CONFIGURATION ====================
 const CONFIG = {
-  API_URL: '', // Not needed for local demo
+  API_URL: 'https://script.google.com/macros/s/AKfycbwr5oTI8G_z9yX5E-D0-yiDWn3emHtiCehM30fDK4huaQwfmPAWvTKFjC87ntuRhlZq/exec',
   ITEMS_PER_PAGE: 10,
-  CACHE_DURATION: 5 * 60 * 1000
+  CACHE_DURATION: 5 * 60 * 1000 // 5 minutes
 };
 
 // Application State
@@ -18,20 +17,30 @@ let state = {
   currentPage: 1,
   charts: {},
   dashboardCache: null,
-  filterOptions: {},
-  mockData: null
+  filterOptions: {}
 };
 
 // ==================== UTILITY FUNCTIONS ====================
 
+/**
+ * Show loading spinner
+ */
 function showLoader() {
   document.getElementById('loader').classList.add('active');
 }
 
+/**
+ * Hide loading spinner
+ */
 function hideLoader() {
   document.getElementById('loader').classList.remove('active');
 }
 
+/**
+ * Show toast notification
+ * @param {string} message - Message to display
+ * @param {string} type - Type of toast: 'success', 'error', 'warning', 'info'
+ */
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
@@ -53,6 +62,12 @@ function showToast(message, type = 'info') {
   }, 4000);
 }
 
+/**
+ * Debounce function for search input
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Wait time in milliseconds
+ * @returns {Function} Debounced function
+ */
 function debounce(func, wait) {
   let timeout;
   return (...args) => {
@@ -61,6 +76,11 @@ function debounce(func, wait) {
   };
 }
 
+/**
+ * Animate counter from 0 to target value
+ * @param {string} id - Element ID
+ * @param {number} target - Target number
+ */
 function animateCounter(id, target) {
   const el = document.getElementById(id);
   let current = 0;
@@ -78,195 +98,57 @@ function animateCounter(id, target) {
 
 // ==================== DARK MODE ====================
 
+/**
+ * Toggle dark mode
+ */
 function toggleDarkMode() {
   document.body.classList.toggle('dark-mode');
   document.getElementById('darkToggle').classList.toggle('active');
   localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
 }
 
+// Load dark mode preference on init
 if (localStorage.getItem('darkMode') === 'true') {
   document.body.classList.add('dark-mode');
   document.getElementById('darkToggle').classList.add('active');
 }
 
-// ==================== MOCK API (Local JSON) ====================
+// ==================== API FUNCTIONS ====================
 
 /**
- * Simulate API call using local JSON data
- * @param {string} func - Function name
+ * Make API call to Google Apps Script backend
+ * @param {string} func - Function name to call
  * @param {Object} data - Data to send
- * @returns {Promise<Object>} Simulated API response
+ * @returns {Promise<Object>} API response
  */
 async function apiCall(func, data = {}) {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  if (!state.mockData) {
-    // Load mock data from JSON file
-    try {
-      const response = await fetch('sdm-data.json');
-      state.mockData = await response.json();
-    } catch (e) {
-      console.error('Failed to load mock data:', e);
-      return { success: false, error: 'Failed to load data' };
+  try {
+    let qs = `action=${encodeURIComponent(func)}`;
+    if (Object.keys(data).length) {
+      qs += `&data=${encodeURIComponent(JSON.stringify(data))}`;
     }
+    
+    const response = await fetch(`${CONFIG.API_URL}?${qs}`);
+    const text = await response.text();
+    
+    if (text.startsWith('<')) {
+      throw new Error('Server error');
+    }
+    
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, error: error.message };
   }
-  
-  const mock = state.mockData;
-  
-  switch (func) {
-    case 'test':
-      return { success: true, message: 'API works!' };
-      
-    case 'loginAdmin':
-      const user = mock.users.find(u => 
-        u.Username === data.username && u.Password === data.password
-      );
-      if (user) {
-        return { 
-          success: true, 
-          user: { username: user.Username, role: user.Role, unit_kerja: user['Unit Kerja'] },
-          message: 'Login successful'
-        };
-      }
-      return { success: false, error: 'Username atau password salah' };
-      
-    case 'getDashboardData':
-      return getDashboardData();
-      
-    case 'getPublicData':
-      return getPublicData(data);
-      
-    case 'getByNIK':
-      const record = mock.data.find(d => d.NIK === data.nik);
-      if (record) {
-        return { success: true, data: record };
-      }
-      return { success: false, error: 'Data tidak ditemukan' };
-      
-    case 'checkNik':
-      const exists = mock.data.some(d => d.NIK === data.nik);
-      return { success: true, exists };
-      
-    case 'submitBiodata':
-      // Add new record (in memory only)
-      mock.data.push({
-        ...data,
-        'Status_Data': 'pending'
-      });
-      return { success: true, message: 'Data berhasil disubmit, menunggu verifikasi' };
-      
-    case 'getAllDataAdmin':
-      return { success: true, data: mock.data };
-      
-    case 'getUsers':
-      return { success: true, data: mock.users };
-      
-    case 'addData':
-      mock.data.push({ ...data, 'Status_Data': 'aktif' });
-      return { success: true, message: 'Data ditambahkan' };
-      
-    case 'updateData':
-      const idx = mock.data.findIndex(d => d.NIK === data.nik);
-      if (idx >= 0) {
-        mock.data[idx] = { ...mock.data[idx], ...data };
-      }
-      return { success: true, message: 'Data diperbarui' };
-      
-    case 'deleteData':
-      mock.data = mock.data.filter(d => d.NIK !== data.nik);
-      return { success: true, message: 'Data dihapus' };
-      
-    case 'getFilterOptions':
-      return { 
-        success: true, 
-        unitKerja: mock.filterOptions.unitKerja,
-        kecamatan: mock.filterOptions.kecamatan
-      };
-      
-    default:
-      return { success: false, error: 'Unknown action' };
-  }
-}
-
-// Helper functions for mock data processing
-function getDashboardData() {
-  const data = state.mockData.data;
-  
-  // Calculate statistics
-  const totalSDM = data.length;
-  const activeSDM = data.filter(d => d.Status_Data === 'aktif').length;
-  const pns = data.filter(d => d.Status === 'PNS').length;
-  const pppk = data.filter(d => d.Status === 'PPPK').length;
-  const kontrak = data.filter(d => d.Status === 'Kontrak').length;
-  const honor = data.filter(d => d.Status === 'Honorer').length;
-  
-  // Unit Kerja distribution
-  const unitKerja = {};
-  data.forEach(d => {
-    const unit = d['Unit Kerja'] || 'Unknown';
-    unitKerja[unit] = (unitKerja[unit] || 0) + 1;
-  });
-  
-  // Jenis Kelamin distribution
-  const laki = data.filter(d => d['Jenis Kelamin'] === 'Laki-laki').length;
-  const perempuan = data.filter(d => d['Jenis Kelamin'] === 'Perempuan').length;
-  
-  // Status distribution
-  const status = {};
-  data.forEach(d => {
-    const s = d.Status || 'Unknown';
-    status[s] = (status[s] || 0) + 1;
-  });
-  
-  // Kecamatan distribution
-  const kecamatan = {};
-  data.forEach(d => {
-    const k = d.Kecamatan || 'Unknown';
-    kecamatan[k] = (kecamatan[k] || 0) + 1;
-  });
-  
-  return {
-    success: true,
-    totalSDM,
-    activeSDM,
-    pns,
-    pppk,
-    kontrak,
-    laki,
-    perempuan,
-    unitKerja,
-    status,
-    kecamatan,
-    kecamatanList: Object.keys(kecamatan),
-    recentData: data.slice(0, 5)
-  };
-}
-
-function getPublicData(params) {
-  let filtered = [...state.mockData.data];
-  
-  if (params.search) {
-    const search = params.search.toLowerCase();
-    filtered = filtered.filter(d => 
-      (d.Nama && d.Nama.toLowerCase().includes(search)) ||
-      (d.Jabatan && d.Jabatan.toLowerCase().includes(search))
-    );
-  }
-  
-  if (params.unitkerja) {
-    filtered = filtered.filter(d => d['Unit Kerja'] === params.unitkerja);
-  }
-  
-  if (params.kecamatan) {
-    filtered = filtered.filter(d => d.Kecamatan === params.kecamatan);
-  }
-  
-  return { success: true, data: filtered };
 }
 
 // ==================== AUTH FUNCTIONS ====================
 
+/**
+ * Set user session
+ * @param {Object} user - User object
+ * @param {string} role - User role
+ */
 function setSession(user, role) {
   state.user = user;
   state.role = role;
@@ -274,6 +156,10 @@ function setSession(user, role) {
   localStorage.setItem('sdm_role', role);
 }
 
+/**
+ * Get user session
+ * @returns {boolean} Has valid session
+ */
 function getSession() {
   const user = localStorage.getItem('sdm_user');
   const role = localStorage.getItem('sdm_role');
@@ -286,6 +172,9 @@ function getSession() {
   return false;
 }
 
+/**
+ * Clear user session
+ */
 function clearSession() {
   state.user = null;
   state.role = null;
@@ -295,10 +184,18 @@ function clearSession() {
 
 // ==================== PAGE NAVIGATION ====================
 
+/**
+ * Show specific page
+ * @param {string} id - Page ID
+ */
 function showPage(id) {
-  document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+  // Hide all pages
+  document.querySelectorAll('.page-section').forEach(page => page.classList.remove('active'));
+  
+  // Show target page
   document.getElementById(id).classList.add('active');
   
+  // Update page title
   const titles = {
     dashboard: 'Dashboard',
     'data-sdm-list': 'Data SDM',
@@ -310,9 +207,11 @@ function showPage(id) {
   };
   document.getElementById('pageTitle').textContent = titles[id] || 'SIKANDA';
   
-  document.querySelectorAll('.menu-item,.submenu-item').forEach(i => i.classList.remove('active'));
+  // Update menu active state
+  document.querySelectorAll('.menu-item,.submenu-item').forEach(item => item.classList.remove('active'));
   document.querySelector(`[data-page="${id}"]`)?.classList.add('active');
   
+  // Load page-specific data
   if (id === 'dashboard') loadDashboard();
   if (id === 'data-sdm-list') loadPublicData();
   if (id === 'admin-panel' && state.role !== 'Administrator') {
@@ -324,6 +223,9 @@ function showPage(id) {
   if (id === 'laporan') loadReportData();
 }
 
+/**
+ * Update user interface based on login status
+ */
 function updateUserUI() {
   if (state.user) {
     document.getElementById('loginBtn').style.display = 'none';
@@ -341,11 +243,17 @@ function updateUserUI() {
   }
 }
 
+/**
+ * Show login page
+ */
 function showLogin() {
   document.getElementById('loginPage').classList.add('active');
   document.getElementById('appContainer').classList.remove('active');
 }
 
+/**
+ * Show main application
+ */
 function showApp() {
   document.getElementById('loginPage').classList.remove('active');
   document.getElementById('appContainer').classList.add('active');
@@ -354,10 +262,17 @@ function showApp() {
   showPage('dashboard');
 }
 
+/**
+ * Close modal
+ */
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('active');
 }
 
+/**
+ * Open lightbox with image
+ * @param {string} src - Image source URL
+ */
 function openLightbox(src) {
   if (src) {
     document.getElementById('lightboxImg').src = src;
@@ -365,10 +280,19 @@ function openLightbox(src) {
   }
 }
 
+/**
+ * Close lightbox
+ */
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('active');
 }
 
+/**
+ * Open modal with custom content
+ * @param {string} title - Modal title
+ * @param {string} content - Modal body content
+ * @param {string} footer - Modal footer content
+ */
 function openModal(title, content, footer) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalBody').innerHTML = content;
@@ -376,12 +300,14 @@ function openModal(title, content, footer) {
   document.getElementById('modalOverlay').classList.add('active');
 }
 
-// ==================== MENU EVENTS ====================
+// ==================== MENU EVENT HANDLERS ====================
 
+// Menu item clicks
 document.querySelectorAll('.menu-item[data-page]').forEach(item => {
   item.addEventListener('click', () => showPage(item.dataset.page));
 });
 
+// Submenu item clicks
 document.querySelectorAll('.submenu-item').forEach(item => {
   item.addEventListener('click', () => {
     showPage(item.dataset.page);
@@ -389,20 +315,24 @@ document.querySelectorAll('.submenu-item').forEach(item => {
   });
 });
 
+// Submenu toggle
 document.querySelector('[data-toggle="submenu"]')?.addEventListener('click', () => {
   document.getElementById('submenu-data-sdm').classList.toggle('show');
 });
 
+// Mobile menu toggle
 document.getElementById('menuToggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebarOverlay').classList.toggle('active');
 });
 
+// Sidebar overlay click (close mobile menu)
 document.getElementById('sidebarOverlay').addEventListener('click', () => {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('active');
 });
 
+// Logout handler
 document.querySelector('[data-action="logout"]')?.addEventListener('click', () => {
   clearSession();
   updateUserUI();
@@ -410,7 +340,7 @@ document.querySelector('[data-action="logout"]')?.addEventListener('click', () =
   showPage('dashboard');
 });
 
-// ==================== LOGIN ====================
+// ==================== LOGIN HANDLER ====================
 
 document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -424,7 +354,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
   if (response.success) {
     setSession(response.user, response.user.role);
     showApp();
-    showToast('Login berhasil (Demo Mode)', 'success');
+    showToast('Login berhasil', 'success');
   } else {
     showToast(response.error, 'error');
   }
@@ -434,27 +364,34 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
 
 // ==================== FILTER OPTIONS ====================
 
+/**
+ * Load filter options (unit kerja, kecamatan)
+ */
 async function loadFilterOptions() {
   const response = await apiCall('getFilterOptions');
   
   if (response.success) {
     state.filterOptions = response;
     
+    // Build unit kerja options
     let options = '<option value="">Semua</option>';
-    response.unitKerja?.forEach(u => {
-      options += `<option value="${u}">${u}</option>`;
+    response.unitKerja?.forEach(unit => {
+      options += `<option value="${unit}">${unit}</option>';
     });
     
+    // Apply to all unit select elements
     ['filterUnit', 'filterKec', 'formUnit', 'reportUnit'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = options;
     });
     
+    // Build kecamatan options
     options = '<option value="">Semua</option>';
-    response.kecamatan?.forEach(k => {
-      options += `<option value="${k}">${k}</option>`;
+    response.kecamatan?.forEach(kec => {
+      options += `<option value="${kec}">${kec}</option>`;
     });
     
+    // Apply to all kecamatan select elements
     ['filterKec', 'formKec', 'reportKec'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = options;
@@ -464,9 +401,14 @@ async function loadFilterOptions() {
 
 // ==================== DASHBOARD ====================
 
+/**
+ * Load dashboard data
+ * @param {boolean} forceRefresh - Force refresh from API
+ */
 async function loadDashboard(forceRefresh = false) {
   showLoader();
   
+  // Check cache first
   if (!forceRefresh && state.dashboardCache && (Date.now() - state.dashboardCache.timestamp < CONFIG.CACHE_DURATION)) {
     renderDashboard(state.dashboardCache.data);
     hideLoader();
@@ -479,6 +421,7 @@ async function loadDashboard(forceRefresh = false) {
     state.dashboardCache = { data: response, timestamp: Date.now() };
     renderDashboard(response);
   } else {
+    // Show error with last cached data
     document.getElementById('dashboardError').innerHTML = `
       <div class="error-banner">
         <i class="fas fa-exclamation-triangle"></i>
@@ -491,7 +434,12 @@ async function loadDashboard(forceRefresh = false) {
   hideLoader();
 }
 
+/**
+ * Render dashboard data
+ * @param {Object} data - Dashboard data
+ */
 function renderDashboard(data) {
+  // Animated counters
   animateCounter('totalSdm', data.totalSDM);
   animateCounter('activeSdm', data.activeSDM);
   animateCounter('pnsSdm', data.pns);
@@ -499,25 +447,34 @@ function renderDashboard(data) {
   animateCounter('kontrakSdm', data.kontrak);
   animateCounter('kecSdm', data.kecamatanList?.length || 0);
   
-  const recentDataHtml = (data.recentData || []).map(d => `
+  // Recent data table
+  const recentDataHtml = (data.recentData || []).map(record => `
     <tr>
-      <td>${d.Nama || '-'}</td>
-      <td>${d['Unit Kerja'] || '-'}</td>
-      <td>${d.Jabatan || '-'}</td>
-      <td><span class="status-badge ${(d.Status || '').toLowerCase()}">${d.Status || '-'}</span></td>
-      <td>${d.Kecamatan || '-'}</td>
+      <td>${record.Nama || '-'}</td>
+      <td>${record['Unit Kerja'] || '-'}</td>
+      <td>${record.Jabatan || '-'}</td>
+      <td><span class="status-badge ${(record.Status || '').toLowerCase()}">${record.Status || '-'}</span></td>
+      <td>${record.Kecamatan || '-'}</td>
     </tr>
   `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--gray-500)">Belum ada data</td></tr>';
   
   document.getElementById('recentTableBody').innerHTML = recentDataHtml;
+  
+  // Create charts
   createCharts(data);
 }
 
+/**
+ * Create Chart.js charts
+ * @param {Object} data - Dashboard data
+ */
 function createCharts(data) {
   const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
   
-  Object.values(state.charts || {}).forEach(c => c.destroy());
+  // Destroy existing charts
+  Object.values(state.charts || {}).forEach(chart => chart.destroy());
   
+  // Unit Kerja Chart (Bar)
   const ctx1 = document.getElementById('unitChart').getContext('2d');
   state.charts.unit = new Chart(ctx1, {
     type: 'bar',
@@ -538,6 +495,7 @@ function createCharts(data) {
     }
   });
   
+  // Jenis Kelamin Chart (Doughnut)
   const ctx2 = document.getElementById('jkChart').getContext('2d');
   state.charts.jk = new Chart(ctx2, {
     type: 'doughnut',
@@ -555,6 +513,7 @@ function createCharts(data) {
     }
   });
   
+  // Status Chart (Pie)
   const ctx3 = document.getElementById('statusChart').getContext('2d');
   state.charts.status = new Chart(ctx3, {
     type: 'pie',
@@ -572,6 +531,7 @@ function createCharts(data) {
     }
   });
   
+  // Kecamatan Chart (Bar)
   const ctx4 = document.getElementById('kecChart').getContext('2d');
   state.charts.kec = new Chart(ctx4, {
     type: 'bar',
@@ -593,8 +553,11 @@ function createCharts(data) {
   });
 }
 
-// ==================== PUBLIC DATA ====================
+// ==================== PUBLIC DATA (SDM LIST) ====================
 
+/**
+ * Load public SDM data
+ */
 async function loadPublicData() {
   showLoader();
   
@@ -615,6 +578,9 @@ async function loadPublicData() {
   hideLoader();
 }
 
+/**
+ * Render public data table with pagination
+ */
 function renderPublicTable() {
   const tbody = document.getElementById('sdmTableBody');
   
@@ -628,24 +594,28 @@ function renderPublicTable() {
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('pagination').style.display = 'flex';
   
+  // Calculate pagination
   const start = (state.currentPage - 1) * CONFIG.ITEMS_PER_PAGE;
   const end = start + CONFIG.ITEMS_PER_PAGE;
   const pageData = state.filteredData.slice(start, end);
   
-  tbody.innerHTML = pageData.map(d => `
+  // Render table rows
+  tbody.innerHTML = pageData.map(record => `
     <tr>
-      <td>${d.Nama || '-'}</td>
-      <td>${d['Unit Kerja'] || '-'}</td>
-      <td>${d['Jenis Kelamin'] || '-'}</td>
-      <td>${d.Jabatan || '-'}</td>
-      <td><span class="status-badge ${(d.Status || '').toLowerCase()}">${d.Status || '-'}</span></td>
-      <td>${d.Kecamatan || '-'}</td>
+      <td>${record.Nama || '-'}</td>
+      <td>${record['Unit Kerja'] || '-'}</td>
+      <td>${record['Jenis Kelamin'] || '-'}</td>
+      <td>${record.Jabatan || '-'}</td>
+      <td><span class="status-badge ${(record.Status || '').toLowerCase()}">${record.Status || '-'}</span></td>
+      <td>${record.Kecamatan || '-'}</td>
     </tr>
   `).join('');
   
+  // Pagination info
   document.getElementById('paginationInfo').textContent =
     `Menampilkan ${start + 1}-${Math.min(end, state.filteredData.length)} dari ${state.filteredData.length}`;
   
+  // Pagination buttons
   const totalPages = Math.ceil(state.filteredData.length / CONFIG.ITEMS_PER_PAGE);
   let buttons = '';
   for (let i = 1; i <= Math.min(totalPages, 5); i++) {
@@ -654,16 +624,21 @@ function renderPublicTable() {
   document.getElementById('paginationBtns').innerHTML = buttons;
 }
 
+/**
+ * Go to specific page
+ * @param {number} page - Page number
+ */
 function goPage(page) {
   state.currentPage = page;
   renderPublicTable();
 }
 
+// Public data filters
 document.getElementById('searchInput').addEventListener('input', debounce(loadPublicData, 500));
 document.getElementById('filterUnit').addEventListener('change', loadPublicData);
 document.getElementById('filterKec').addEventListener('change', loadPublicData);
 
-// ==================== PROFIL ====================
+// ==================== PROFILE (SEARCH BY NIK) ====================
 
 document.getElementById('profilSearchForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -676,25 +651,28 @@ document.getElementById('profilSearchForm').addEventListener('submit', async (e)
     document.getElementById('profilSearch').style.display = 'none';
     document.getElementById('profilContent').style.display = 'block';
     
-    const d = response.data;
-    document.getElementById('profileNama').textContent = d.Nama || '-';
-    document.getElementById('profileJabatan').textContent = d.Jabatan || '-';
-    document.getElementById('profileNik').textContent = d.NIK || '-';
-    document.getElementById('profileJk').textContent = d['Jenis Kelamin'] || '-';
-    document.getElementById('profileAgama').textContent = d.Agama || '-';
-    document.getElementById('profileUnit').textContent = d['Unit Kerja'] || '-';
-    document.getElementById('profileDesa').textContent = d.Desa || '-';
-    document.getElementById('profileKec').textContent = d.Kecamatan || '-';
+    const data = response.data;
     
+    // Update profile info
+    document.getElementById('profileNama').textContent = data.Nama || '-';
+    document.getElementById('profileJabatan').textContent = data.Jabatan || '-';
+    document.getElementById('profileNik').textContent = data.NIK || '-';
+    document.getElementById('profileJk').textContent = data['Jenis Kelamin'] || '-';
+    document.getElementById('profileAgama').textContent = data.Agama || '-';
+    document.getElementById('profileUnit').textContent = data['Unit Kerja'] || '-';
+    document.getElementById('profileDesa').textContent = data.Desa || '-';
+    document.getElementById('profileKec').textContent = data.Kecamatan || '-';
+    
+    // Update avatar
     const avatar = document.getElementById('profileAvatar');
-    if (d.Foto) {
-      avatar.innerHTML = `<img src="${d.Foto}">`;
-      avatar.onclick = () => openLightbox(d.Foto);
+    if (data.Foto) {
+      avatar.innerHTML = `<img src="${data.Foto}">`;
+      avatar.onclick = () => openLightbox(data.Foto);
     } else {
       avatar.innerHTML = '<i class="fas fa-user"></i>';
     }
     
-    showToast('Profil ditemukan (Demo)', 'success');
+    showToast('Profil ditemukan', 'success');
   } else {
     showToast(response.error || 'Data tidak ditemukan', 'error');
   }
@@ -710,6 +688,7 @@ document.getElementById('biodataForm').addEventListener('submit', async (e) => {
   
   const nik = document.getElementById('formNik').value;
   
+  // Check if NIK already exists
   const checkResponse = await apiCall('checkNik', { nik });
   if (checkResponse.exists) {
     showToast('NIK sudah terdaftar', 'warning');
@@ -743,20 +722,27 @@ document.getElementById('biodataForm').addEventListener('submit', async (e) => {
   hideLoader();
 });
 
-// ==================== ADMIN ====================
+// ==================== ADMIN FUNCTIONS ====================
 
+/**
+ * Load admin data
+ */
 async function loadAdminData() {
   if (state.role !== 'Administrator') return;
   
   showLoader();
   
-  const response = await apiCall('getAllDataAdmin', {});
+  const response = await apiCall('getAllDataAdmin', {
+    role: state.role,
+    unit_kerja: state.user?.unit_kerja
+  });
   
   if (response.success) {
     state.allData = response.data;
     renderAdminTable();
   }
   
+  // Load users
   const usersResponse = await apiCall('getUsers');
   if (usersResponse.success) {
     renderUsersTable(usersResponse.data);
@@ -765,36 +751,43 @@ async function loadAdminData() {
   hideLoader();
 }
 
+/**
+ * Render admin data table
+ */
 function renderAdminTable() {
   const tbody = document.getElementById('adminTableBody');
   
-  tbody.innerHTML = state.allData.map(d => `
+  tbody.innerHTML = state.allData.map(record => `
     <tr>
-      <td>${d.NIK || '-'}</td>
-      <td>${d.Nama || '-'}</td>
-      <td>${d['Unit Kerja'] || '-'}</td>
-      <td>${d.Jabatan || '-'}</td>
-      <td><span class="status-badge ${(d.Status || '').toLowerCase()}">${d.Status || '-'}</span></td>
-      <td><span class="status-badge ${d.Status_Data}">${d.Status_Data || 'aktif'}</span></td>
+      <td>${record.NIK || '-'}</td>
+      <td>${record.Nama || '-'}</td>
+      <td>${record['Unit Kerja'] || '-'}</td>
+      <td>${record.Jabatan || '-'}</td>
+      <td><span class="status-badge ${(record.Status || '').toLowerCase()}">${record.Status || '-'}</span></td>
+      <td><span class="status-badge ${record.Status_Data}">${record.Status_Data || 'aktif'}</span></td>
       <td>
         <div class="action-btns">
-          <button class="action-btn edit" onclick="editData('${d.NIK}')"><i class="fas fa-edit"></i></button>
-          <button class="action-btn delete" onclick="deleteData('${d.NIK}')"><i class="fas fa-trash"></i></button>
+          <button class="action-btn edit" onclick="editData('${record.NIK}')"><i class="fas fa-edit"></i></button>
+          <button class="action-btn delete" onclick="deleteData('${record.NIK}')"><i class="fas fa-trash"></i></button>
         </div>
       </td>
     </tr>
   `).join('');
 }
 
+/**
+ * Render users table
+ * @param {Array} users - Users array
+ */
 function renderUsersTable(users) {
   const tbody = document.getElementById('usersTableBody');
   
-  tbody.innerHTML = users.map(u => `
+  tbody.innerHTML = users.map(user => `
     <tr>
-      <td>${u.Username}</td>
-      <td>${u.Role}</td>
+      <td>${user.Username}</td>
+      <td>${user.Role}</td>
       <td>
-        <button class="action-btn delete" onclick="deleteUser('${u.Username}')">
+        <button class="action-btn delete" onclick="deleteUser('${user.Username}')">
           <i class="fas fa-trash"></i>
         </button>
       </td>
@@ -802,16 +795,21 @@ function renderUsersTable(users) {
   `).join('');
 }
 
+/**
+ * Edit data modal
+ * @param {string} nik - NIK of record to edit
+ */
 function editData(nik) {
-  const d = state.allData.find(x => x.NIK === nik);
-  if (!d) return;
+  const record = state.allData.find(x => x.NIK === nik);
+  if (!record) return;
   
+  // Build options
   let unitOptions = state.filterOptions.unitKerja?.map(u =>
-    `<option value="${u}" ${u === d['Unit Kerja'] ? 'selected' : ''}>${u}</option>`
+    `<option value="${u}" ${u === record['Unit Kerja'] ? 'selected' : ''}>${u}</option>`
   ).join('') || '';
   
   let kecOptions = state.filterOptions.kecamatan?.map(k =>
-    `<option value="${k}" ${k === d.Kecamatan ? 'selected' : ''}>${k}</option>`
+    `<option value="${k}" ${k === record.Kecamatan ? 'selected' : ''}>${k}</option>`
   ).join('') || '';
   
   const content = `
@@ -819,7 +817,7 @@ function editData(nik) {
       <input type="hidden" value="${nik}">
       <div class="form-group">
         <label>Nama</label>
-        <input id="eNama" value="${d.Nama || ''}">
+        <input id="eNama" value="${record.Nama || ''}">
       </div>
       <div class="form-group">
         <label>Unit Kerja</label>
@@ -827,13 +825,13 @@ function editData(nik) {
       </div>
       <div class="form-group">
         <label>Jabatan</label>
-        <input id="eJabatan" value="${d.Jabatan || ''}">
+        <input id="eJabatan" value="${record.Jabatan || ''}">
       </div>
       <div class="form-group">
         <label>Status Data</label>
         <select id="eStatusData">
-          <option value="aktif" ${d.Status_Data === 'aktif' ? 'selected' : ''}>Aktif</option>
-          <option value="pending" ${d.Status_Data === 'pending' ? 'selected' : ''}>Pending</option>
+          <option value="aktif" ${record.Status_Data === 'aktif' ? 'selected' : ''}>Aktif</option>
+          <option value="pending" ${record.Status_Data === 'pending' ? 'selected' : ''}>Pending</option>
         </select>
       </div>
     </form>
@@ -847,6 +845,10 @@ function editData(nik) {
   openModal('Edit Data', content, footer);
 }
 
+/**
+ * Save edited data
+ * @param {string} nik - NIK of record
+ */
 async function saveEdit(nik) {
   showLoader();
   
@@ -872,6 +874,10 @@ async function saveEdit(nik) {
   hideLoader();
 }
 
+/**
+ * Delete data
+ * @param {string} nik - NIK of record to delete
+ */
 async function deleteData(nik) {
   if (!confirm('Hapus data ini?')) return;
   
@@ -890,11 +896,28 @@ async function deleteData(nik) {
   hideLoader();
 }
 
+/**
+ * Delete user
+ * @param {string} username - Username to delete
+ */
 async function deleteUser(username) {
   if (!confirm(`Hapus user ${username}?`)) return;
-  showToast('User tidak dapat dihapus (Demo)', 'warning');
+  
+  showLoader();
+  
+  const response = await apiCall('deleteUser', { username });
+  
+  if (response.success) {
+    showToast('User dihapus', 'success');
+    loadAdminData();
+  } else {
+    showToast(response.error, 'error');
+  }
+  
+  hideLoader();
 }
 
+// Add data button
 document.getElementById('addDataBtn').addEventListener('click', () => {
   let unitOptions = state.filterOptions.unitKerja?.map(u =>
     `<option value="${u}">${u}</option>`
@@ -946,6 +969,9 @@ document.getElementById('addDataBtn').addEventListener('click', () => {
   openModal('Tambah Data', content, footer);
 });
 
+/**
+ * Save new data
+ */
 async function saveAdd() {
   showLoader();
   
@@ -973,8 +999,11 @@ async function saveAdd() {
   hideLoader();
 }
 
-// ==================== LAPORAN ====================
+// ==================== LAPORAN / REPORT ====================
 
+/**
+ * Load report data
+ */
 async function loadReportData() {
   showLoader();
   
@@ -1003,6 +1032,10 @@ async function loadReportData() {
   hideLoader();
 }
 
+/**
+ * Export data to CSV
+ * @param {string} type - Export type
+ */
 function exportData(type) {
   let csv = 'Nama,Unit Kerja,Jabatan,Jenis Kelamin,Status,Kecamatan\n';
   
@@ -1015,30 +1048,27 @@ function exportData(type) {
   link.href = URL.createObjectURL(blob);
   link.download = 'laporan_sdm.csv';
   link.click();
-  showToast('Data diexport ke CSV', 'success');
 }
 
-// ==================== PENGATURAN ====================
+// ==================== PENGATURAN / SETTINGS ====================
 
+/**
+ * Save application settings
+ */
 function saveSettings() {
   const name = document.getElementById('instansiName').value;
   localStorage.setItem('instansiName', name);
   showToast('Pengaturan disimpan', 'success');
 }
 
+// Load settings on init
 if (localStorage.getItem('instansiName')) {
   document.getElementById('instansiName').value = localStorage.getItem('instansiName');
 }
 
-// ==================== INIT ====================
+// ==================== INITIALIZATION ====================
 
-// Check if we're using GitHub demo mode
-const isGitHubDemo = true; // Set to false to use Google Apps Script backend
-
+// Initialize app
 if (getSession()) {
   showApp();
 }
-
-// Show demo notice
-console.log('%c SIKANDA GitHub Demo Mode ', 'background: #2563eb; color: white; padding: 5px 10px; border-radius: 3px;');
-console.log('%cGunakan: admin / admin123 untuk login', 'color: #10b981;');
